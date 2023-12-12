@@ -1,19 +1,22 @@
-const express = require('express')
-const app = express()
+const express = require('express');
+const app = express();
 const cors = require('cors');
 const config = require('./config');
 const { default: mongoose } = require('mongoose');
-const User = require('./models/User.js')
+const User = require('./models/User.js');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
-
+const imageDownloader = require("image-downloader");
+const multer = require('multer');
+const fs = require('fs');
 
 const bcryptsalt = bcrypt.genSaltSync(10);
 const jwtsecret = 'hv8edsdhbb8yhcbhdscbsd'
 
 app.use(express.json());
 app.use(cookieParser());
+app.use('/uploads', express.static(__dirname + '/Uploads'))  //This line of code essentially tells Express.js to serve static files from the Uploads directory whenever a request comes in for a URL starting with /uploads.
 
 app.use(cors({
     credentials: true,
@@ -59,12 +62,12 @@ app.post('/login', (req, res) => {
                         return res.status(422).json('Incorrect password');
                     }
 
-                    jwt.sign({ email: userDoc.email, userId: userDoc._id }, jwtsecret, { expiresIn: '1h' }, (err, token) => {
+                    jwt.sign({ email: userDoc.email, userId: userDoc._id }, jwtsecret, { expiresIn: '36h' }, (err, token) => {
                         if (err) {
                             return res.status(500).json('Internal server error');
                         }
 
-                        res.cookie('token', token, { maxAge: 3600 * 1000, httpOnly: true, secure: true });
+                        res.cookie('token', token, { maxAge: 3600 * 9000, httpOnly: true, secure: true });
                         res.json(userDoc);
                     });
                 })
@@ -128,7 +131,52 @@ app.get('/profile', (req, res) => {
 })
 
 
+app.post('/logout', (req, res) => {
+    res.cookie('token', '').json(true);
+})
 
+
+app.post('/upload-by-link', (req, res) => {
+    const { link } = req.body;
+    const newName = 'photo' + Date.now() + '.jpg';
+    imageDownloader.image({
+        url: link,
+        dest: __dirname + '/Uploads/' + newName
+    })
+        .then((val) => {
+            res.json(newName)
+            console.log(newName); // saved to /path/to/dest/image.jpg
+        })
+        .catch((err) => console.error(err + 'this errooooooor'));
+});
+
+const photosMiddleware = multer({ dest: 'Uploads/' })
+app.post('/upload', photosMiddleware.array('photos', 100), (req, res) => {
+    const uploadedFiles = [];                                                    //formore: https://g.co/bard/share/1e97ed6cb45f
+    for (let i = 0; i < req.files.length; i++) {
+        const { path, originalname } = req.files[i];
+        const parts = originalname.split('.');
+        const ext = parts[parts.length - 1]
+        const newPath = path + '.' + ext    // for eg: originalname = shibu.jpg, then we cut it into shibu and jpg and paste that jpg to the img path name,so name will be different
+        fs.renameSync(path, newPath)
+        uploadedFiles.push(newPath.replace('Uploads\\', ''));
+    }
+    res.json(uploadedFiles)
+})
+
+
+app.post('/addplaces', (req, res) => {
+
+})
+
+
+
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 mongoose.connect(config.MONGO_URL)
     .then((val) => {

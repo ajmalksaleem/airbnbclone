@@ -8,7 +8,7 @@ function Loginpage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [redirect, setredirect] = useState(false);
-    const { SetUser } = useContext(userContext)
+    const { user, SetUser } = useContext(userContext)
 
     function loginUser(e) {
         e.preventDefault()
@@ -27,7 +27,9 @@ function Loginpage() {
             })
     }
 
-    if (redirect) {
+
+
+    if (redirect || user) {
         return <Navigate to={'/'} />
     }
 
