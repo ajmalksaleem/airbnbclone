@@ -10,6 +10,8 @@ const cookieParser = require('cookie-parser');
 const imageDownloader = require("image-downloader");
 const multer = require('multer');
 const fs = require('fs');
+const Place = require('./models/Place.js');
+const Booking = require('./models/Booking.js');
 
 const bcryptsalt = bcrypt.genSaltSync(10);
 const jwtsecret = 'hv8edsdhbb8yhcbhdscbsd'
@@ -115,7 +117,6 @@ app.get('/profile', (req, res) => {
     if (token) {
         jwt.verify(token, jwtsecret, {}, (err, user) => {
             if (err) throw err
-
             User.findById(user.userId)
                 .then((userinfo) => {
                     const { name, email, _id } = userinfo
@@ -166,15 +167,112 @@ app.post('/upload', photosMiddleware.array('photos', 100), (req, res) => {
 
 
 app.post('/addplaces', (req, res) => {
+    const token = req.cookies.token;
+    const { title, address, addedPhotos, description, perks,
+        extraInfo, checkIn, checkOut, maxGuests, price } = req.body;
+
+    jwt.verify(token, jwtsecret, {}, (err, user) => {
+        if (err) throw err
+
+        Place.create({
+            owner: user.userId,
+            title, address, addedPhotos, description, perks,
+            extraInfo, checkIn, checkOut, maxGuests, price
+        })
+            .then((placeDoc) => {
+                res.json(placeDoc);
+            })
+            .catch((err) => {
+                res.json(err);
+            })
+    });
+})
+
+app.get('/user-places', (req, res) => {
+    const token = req.cookies.token;
+    jwt.verify(token, jwtsecret, {}, (err, user) => {
+        if (err) throw err
+        Place.find({ owner: user.userId })
+            .then((foundplace) => {
+                res.json(foundplace)
+            })
+            .catch((err) => {
+                res.json(err)
+            })
+    })
 
 })
 
 
 
+app.get('/places/:id', (req, res) => {
+    const { id } = req.params;
+    Place.findById(id)
+        .then((placefound) => {
+            res.json(placefound);
+        }).catch((err) => {
+            res.json(err)
+        });
+
+});
+
+app.put('/updateplaces', (req, res) => {
+    const token = req.cookies.token;
+    const { id, title, address, addedPhotos, description, perks,
+        extraInfo, checkIn, checkOut, maxGuests, price } = req.body;
+    jwt.verify(token, jwtsecret, {}, (err, user) => {
+        if (err) throw err
+        Place.findById(id)
+            .then((foundplace) => {
+                if (foundplace.owner.toString() === user.userId) {
+                    foundplace.set({
+                        title, address, addedPhotos, description, perks,
+                        extraInfo, checkIn, checkOut, maxGuests, price
+                    })
+                    foundplace.save()
+                        .then((result) => {
+                            res.json('ok')
+                        }).catch((err) => {
+                            res.send(err)
+                        });
+
+                }
+            })
+            .catch((err) => {
+            });
+    })
+})
+
+app.get('/places', (req, res) => {
+    Place.find()
+        .then((foundplaces) => {
+            res.json(foundplaces)
+        }).catch((err) => {
+            res.send(err);
+        });
+})
 
 
+app.post('/booking', (req, res) => {
+    const { place, checkIn, checkOut, numberOfGuests, name, phone, price } = req.body;
+    Booking.create({
+        place, checkIn, checkOut, numberOfGuests, name, phone, price
+    })
+        .then((response) => {
+            res.send(response)
+        }).catch((err) => {
+            res.send(err);
+        });
+})
 
 
+app.get('/bookings', (req, res) => {
+    const token = req.cookies.token;
+    jwt.verify(token, jwtsecret, {}, (err, user) => {
+        if (err) throw err
+
+    })
+})
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
